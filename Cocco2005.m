@@ -13,13 +13,13 @@
 % So I just make some stuff up. He says Tauchen-Hussey to discretize eta,
 % and uses 3 points.
 
-% Note: C2005, while estimating the the correlation between aggregate income shocks (eta) and house prices (p)
+% Note: C2005, while estimating emprically that the correlation between aggregate income shocks (eta) and house prices (p)
 % is rho_eta_p=0.553, actually imposes that rho_eta_p=1 to solve the mode [this eliminates a state variable, as p is now just 'same' thing as eta].
 % Code here allows you to drop this imposition:
 impose_rho_eta_p=1; % =1 is what C2005 does
 
-n_d=[51,301,2]; % riskyshare, savings, riskyinvest [riskyinvest is just so I can still refine riskyshare out of the ReturnFn, it does not add functionality, just makes codes fastter/less memory]
-n_a=[6,2,101]; % assets, housing, has-ever-participated-in-stock-market [the 'riskyasset' must be the last endogenous state]
+n_d=[51,301,2]; % riskyshare, savings, riskyinvest [riskyinvest is just so I can still refine riskyshare out of the ReturnFn, it does not add functionality, just makes codes faster/less memory]
+n_a=[6,2,101]; % ,housing, has-ever-participated-in-stock-market, assets [the 'riskyasset' must be the last endogenous state]
 if impose_rho_eta_p==1 % =1 is what C2005 does
     n_z=[5,1]; % p has to follow eta, easiest way to do this is to use a joint grid on z (that way the number of inputs to the ReturnFn, etc., are same as when using impose_rho_eta_p=0)
 elseif impose_rho_eta_p==0
@@ -167,7 +167,7 @@ Params.spcost=1000; % C2005 calls this F. It is calibrated to $1000 dollars (not
 
 %% Grids
 % Endogenous states
-asset_grid=-50000+5050000*linspace(0,1,n_a(3))'.^3; % assets, -50000 to (5050000-50000), ^3 puts more points near zero
+asset_grid=-50000+550000*linspace(0,1,n_a(3))'.^3; % assets, -50000 to 500000, ^3 puts more points near zero [originally max as 5million, but no-one went anywhere near it]
 % make the point closest to zero be exactly zero
 [~,zeroassetsind]=min(abs(asset_grid)); % start people with zero savings [THIS IS A GUESS, NEED TO FIND WHAT C2005 DOES?]
 asset_grid(zeroassetsind)=0;
