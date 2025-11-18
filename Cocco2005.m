@@ -221,7 +221,8 @@ elseif impose_rho_eta_p==0
     stddevmatrix=diag([Params.sigma_eta_epsilon, Params.sigma_p]);
     corrmatrix=[1,Params.rho_eta_p; Params.rho_eta_p,1];
     CoVarMatrix=stddevmatrix*corrmatrix*stddevmatrix;
-    [z_grid,pi_z]=discretizeVAR1_FarmerToda([0; Params.beta],[Params.rho_eta,0; 0,Params.rho_p],CoVarMatrix,n_z);
+    [z_grid,pi_z]=discretizeVAR1_FarmerToda([0;0],[Params.rho_eta,0; 0,Params.rho_p],CoVarMatrix,n_z);
+    % Note: I don't use [0; Params.b] as the constants, because the Params.b is added in later inside the ReturnFn.
 end
 
 
@@ -326,6 +327,19 @@ StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNam
 statdisttime=toc
 
 
+% look at how much of the asset grid is actually used
+assetDist.college=squeeze(sum(sum(sum(sum(sum(sum(StationaryDist.college,1),2),4),5),6),7)); % (a,j)
+assetDist.highschool=squeeze(sum(sum(sum(sum(sum(sum(StationaryDist.highschool,1),2),4),5),6),7)); % (a,j)
+assetDist.nohighschool=squeeze(sum(sum(sum(sum(sum(sum(StationaryDist.nohighschool,1),2),4),5),6),7)); % (a,j)
+assetDist.college=cumsum(assetDist.college,1)./sum(assetDist.college,1);
+assetDist.highschool=cumsum(assetDist.highschool,1)./sum(assetDist.highschool,1);
+assetDist.nohighschool=cumsum(assetDist.nohighschool,1)./sum(assetDist.nohighschool,1);
+
+figure(1);
+subplot(3,1,1); plot(asset_grid, assetDist.college)
+subplot(3,1,2); plot(asset_grid, assetDist.highschool)
+subplot(3,1,3); plot(asset_grid, assetDist.nohighschool)
+
 %% Calculate some life-cycle profiles to see if things look reasonable
 
 FnsToEvaluate.assets=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove) a;
@@ -341,7 +355,7 @@ acstime=toc
 
 
 
-fig1=figure(1);
+figure(2);
 subplot(5,1,1); plot(Params.age,AgeConditionalStats.assets.Mean/1000)
 title('Assets (thousands of dollars)')
 subplot(5,1,2); plot(Params.age,AgeConditionalStats.housing.Mean/1000)
