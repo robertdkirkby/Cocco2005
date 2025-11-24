@@ -10,14 +10,13 @@ end
 
 % p is log(P) housing shocks
 % p is markov, which captures the stochastic
-% but p also has a determistic growth of b every period
+% But P also has a determistic growth of b every period
 % So I compute P itself as
-P=(1+b)^(agej-1)*exp(p);
+P=((1+b)^(agej-1))*exp(p);
 % This might be a little fast and loose, but C2005 is not clear on this as
-% he has the determinestic growth in p, but then does not discretize it in
+% he has the deterministic growth in p, but then does not discretize it in
 % a way that includes this constant drift (because he just sets it
 % proportional to eta which does not have drift).
-
 
 % housing costs
 housingcosts=0; % just to keep GPU happy
@@ -59,6 +58,11 @@ if sp==0 && riskyinvest>0
     if spprime==0
         F=-Inf;
     end
+elseif sp==0 && riskyinvest==0
+    % not participating in the share market, so remain sp=0
+    if spprime==1
+        F=-Inf;
+    end
 end
 if sp==1 && spprime==0
     % sp is an absorbing state
@@ -88,9 +92,6 @@ if agej==J % terminal period
         F=-Inf;
     end
 end
-
-
-
 
 
 end

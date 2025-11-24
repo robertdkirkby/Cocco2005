@@ -8,18 +8,13 @@
 % passed to me) that the original codes have been lost to the sands of time
 % so a full replication is not possible.
 
-% Cocco (2005) does not say anything much about how many points are used for
-% housing, omega and u (p must use same number of points as eta). 
-% So I just make some stuff up. He says Tauchen-Hussey to discretize eta,
-% and uses 3 points.
-
 % Note: C2005, while estimating emprically that the correlation between aggregate income shocks (eta) and house prices (p)
 % is rho_eta_p=0.553, actually imposes that rho_eta_p=1 to solve the mode [this eliminates a state variable, as p is now just 'same' thing as eta].
 % Code here allows you to drop this imposition:
 impose_rho_eta_p=1; % =1 is what C2005 does
 
 n_d=[51,301,2]; % riskyshare, savings, riskyinvest [riskyinvest is just so I can still refine riskyshare out of the ReturnFn, it does not add functionality, just makes codes faster/less memory]
-n_a=[6,2,101]; % ,housing, has-ever-participated-in-stock-market, assets [the 'riskyasset' must be the last endogenous state]
+n_a=[4,2,101]; % ,housing, has-ever-participated-in-stock-market, assets [the 'riskyasset' must be the last endogenous state]
 if impose_rho_eta_p==1 % =1 is what C2005 does
     n_z=[5,1]; % p has to follow eta, easiest way to do this is to use a joint grid on z (that way the number of inputs to the ReturnFn, etc., are same as when using impose_rho_eta_p=0)
 elseif impose_rho_eta_p==0
@@ -31,8 +26,9 @@ n_u=7; % returns to risky asset
 N_j=10; % 5 year periods, ages 25-29 to 70-74.
 
 vfoptions.riskyasset=1;
-simoptions.riskyasset=1;
+simoptions.riskyasset=vfoptions.riskyasset;
 vfoptions.refine_d=[0,1,2]; % number of d1, d2, and d3 decision variables
+simoptions.refine_d=vfoptions.refine_d;
 % zero 'd1' decision variable that appears in ReturnFn but not aprimeFn (not expecations)
 % one 'd2' decision variable that appears in aprimeFn but not ReturnFn
 % one 'd3' decision variable (savings) which appears in both ReturnFn and aprimeFn (expecations)
@@ -47,6 +43,11 @@ Names_i={'nohighschool','highschool','college'};
 % relevant and we ignore it, treating them both as idiosyncratic shocks.
 
 % Cocco (2005) uses the gross returns Rtilde, R_d and R_f. I use the net returns rtilde, r_d and r_f [R=1+r].
+
+% Cocco (2005) does not say anything much about how many points are used for
+% housing, omega and u (p must use same number of points as eta). 
+% So I just make some stuff up. He says Tauchen-Hussey to discretize eta,
+% and uses 3 points.
 
 % Paper contains a confusion between eta and etatilde, and omega and
 % omegatilde. As far as I can tell the whole thing is just a massive typo and they
@@ -70,8 +71,11 @@ Names_i={'nohighschool','highschool','college'};
 % they could be correlated), but then you have to model two standard endogenous
 % states instead of one riskyasset, so while the toolkit could solve the
 % model it would be a fairly poor way to go about doing this.
+% Note that because C2005 calibrates rho_{epsilon,iota}=0 this is not a
+% meaningful limitation on the code here. Just to emphasize that this code is
+% hardcoding the rho_{epsilon,iota}=0.
 
-% C2005 is really weird, as there appears to be no possibility of not
+% C2005 is rather weird, as there appears to be no possibility of not
 % owning a house. Normally you would put "housing services" into the model,
 % and then houseing services would be a fraction of housing owned, and
 % renters (households that own zero housing) would be able to rent housing
@@ -88,6 +92,16 @@ Names_i={'nohighschool','highschool','college'};
 % is clearly not an annual income, whereas if you have odd units 1.2 may or
 % may not make sense as an annual income).
 
+% Many of the parameters Cocco (2005) are 'annual' but the model period is
+% 5 years. 
+% To convert annual growth rate g_a to a five-year growth rate g_5y we use
+% g_5y=(1+r_a)^5 -1
+% To convert annual std dev s_a to a five-year std dev s_5y we use
+% s_5yr=sqrt( (s_a^2 + (1+g_a)^2)^5 - ((1+g_a)^2)^5 )
+% Note that people sometimes use the rule-of-thumb s_5y=sqrt(5)s_a, but
+% this ignores compounding and so the above is better (as long as the
+% shocks are independent, if the shocks were correlated it would not be
+% correct).
 
 %% 
 % Demographics and ageing
@@ -124,26 +138,38 @@ Params.sigma_eta=Params.sigma_eta_epsilon/sqrt(1-Params.rho_eta^2);
 Params.sigma_omega.nohighschool=0.136; % std dev of omega
 Params.sigma_omega.highschool=0.131; % std dev of omega
 Params.sigma_omega.college=0.133; % std dev of omega
+% My reading of C2005 Section 2.2 (pg 542) is that these (rho and sigma for earnings) are already based on 5-year earnings data.
 
 % Housing
 Params.Hmin=20000; % minimum house size, $20000 (not clear how this translates into model units)
-Params.prob_forcedtomove=0.03; % probability hit with a 'shock' and forced to move (C2005 calls this pi)
+Params.prob_forcedtomove=0.03*5; % probability hit with a 'shock' and forced to move (C2005 calls this pi), 3% annual
 Params.lambda_h=0.08; % monetary cost of selling a house
-Params.delta_h=0.01*5; % annual maintainence costs of housing (C2005 calibrates this as depreciation rather than maitainence cost; 1% depreciation on an annual basis)
+Params.delta_h=0.01*5; % annual maintainence costs of housing (C2005 calibrates this as depreciation rather than maintainence cost; 1% depreciation on an annual basis)
 Params.downpayment=0.15; % downpayment (as fraction of house) (C2005 calls this d)
 
 % House Price Shocks
-Params.b=0.016*5; % real house price growth [this is the five-year rate]
-Params.sigma_p=0.062; % std. dev. of house prices
+% C2005 does not appear to contain any info on if the reported parameters
+% here are annual or 5 year. They appear in Table 1 alongside earnings
+% parameters that I interpreted as 5 year. None-the-less I am going to
+% interpret these as annual. The reason for this is that the text and Fig 1
+% describe earnings based on 5-year age bins, but describe the house price
+% index and the growth rate of house price in annual terms. It is also
+% because the b=0.016 reported in Table 1 is explained explictly in the
+% text to be annual.
+Params.b=(1+0.01)^5-1; % real house price growth [this is the five-year rate] % Table 1 reports b=0.016, but then on pg 545 he write that he decided to use 0.01 instead (annually)
+Params.sigma_p_annual=0.062; % std. dev. of house prices
+Params.sigma_p=sqrt( (Params.sigma_p_annual^2 + (1+Params.b)^2)^5 - ((1+Params.b)^2)^5 );
 Params.rho_eta_p=0.553; % correlation between house prices and aggregate income shocks
 if impose_rho_eta_p==1 % C2005 does this in his results, but you can turn it off here
     Params.rho_eta_p=1;
 end
-% C2005 does not report an autocorrelation between house prices and
-% aggregate income shocks because it is implicit in his imposition of
-% rho_eta_p=1. But here I need one as it is possible to turn this off.
-Params.rho_p=Params.rho_eta_p;
+% C2005 does not report an autocorrelation for house prices because it is 
+% implicit in his imposition of perfect correlation between house prices
+% and aggregate earnings, rho_eta_p=1. But here I need one as it is possible 
+% to turn off the perfect correlation imposition.
+Params.rho_p=Params.rho_eta; % just use the same autocorrelation as the aggregate earnings, this is likely incorrect, but paper does not report a number so it will have to do
 % Note: This would be better modelled as a bivariate VAR(1) on (eta,p).
+
 
 % Housing and 'aggregate' labor shocks
 % To keep things simple, C2005 just sets eta=kappa_eta*p. Notice that eta=kappa_eta*p 
@@ -151,29 +177,35 @@ Params.rho_p=Params.rho_eta_p;
 % appear to report value for kappa_eta I use this to calculate it
 Params.kappa_eta=Params.sigma_eta/Params.sigma_p;
 % Note: 1/kappa_eta is approx 2, so house prices are not that much more volatile than earnings.
+% Note: Not obvious if C2005 did this off of the annual or 5-year versions of sigma, here I use the five year ones.
 
 % Risky asset returns,
-% rtilde=log(iota), iota~N(mu,sigma_iota^2)
+% rtilde=exp(iota), iota~N(mu,sigma_iota^2)  [C2005 models rtilde as log-Normal, iota is the normal]
 % Calculation of mu [X is normal, then E[exp(X)]=exp(𝜇+𝜎^2/2), etc.]
-Params.sigma_iota=0.1674; % std dev of innovations
-Params.mu=log(0.10-(Params.sigma_iota^2)/2); % mean return [want mean of rtilde to be 10%]
+Params.sigma_iota_annual=0.1674; % std dev of innovations, C2005 is explicit that this is annual
+Params.mu_rtildeannual=0.1; % mean return [want mean of rtilde to be 10%]
+Params.mu_rtilde5year=(1+Params.mu_rtildeannual)^5-1;
+Params.sigma_iota=sqrt( (Params.sigma_iota_annual^2 + (1+Params.mu_rtildeannual)^2)^5 - ((1+Params.mu_rtildeannual)^2)^5 );
+Params.mu=log(Params.mu_rtilde5year)-(Params.sigma_iota^2)/2; % mean return [want mean of rtilde to be 10%]
+% Quick check: exp(Params.mu + (Params.sigma_iota^2)/2) should give back Params.mu_rtilde5year
+
 
 % Safe assets
-Params.r_f=0.02; % return on 'treasury bills' (C2005 uses R_f=1+r_f)
-Params.r_d=0.04; % return on debt (C2005 uses R_d=1+r_d)
+Params.r_f=(1+0.02)^5-1; % return on 'treasury bills' (C2005 uses R_f=1+r_f), 2% annual
+Params.r_d=(1+0.04)^5-1; % return on debt (C2005 uses R_d=1+r_d), 4% annual
 
 % Stock-market participation costs (paid first time entering)
 Params.spcost=1000; % C2005 calls this F. It is calibrated to $1000 dollars (not clear how this translates into model units)
 
+
 %% Grids
 % Endogenous states
-asset_grid=-50000+550000*linspace(0,1,n_a(3))'.^3; % assets, -50000 to 500000, ^3 puts more points near zero [originally max as 5million, but no-one went anywhere near it]
+asset_grid=-50000+1050000*linspace(0,1,n_a(3))'.^3; % assets, -50000 to 1000000, ^3 puts more points near zero [originally max as 5million, but no-one went anywhere near it]
 % make the point closest to zero be exactly zero
 [~,zeroassetsind]=min(abs(asset_grid)); % start people with zero savings [THIS IS A GUESS, NEED TO FIND WHAT C2005 DOES?]
 asset_grid(zeroassetsind)=0;
 
-
-housing_grid=Params.Hmin*[0,1,2,3,4,5]'; 
+housing_grid=Params.Hmin*(0:1:n_a(1)-1)'; 
 % C2005 does not say much about the grid on housing. He specifies that Hmin is a point, and is the minimum value of housing.
 % We need H=0 so everyone can start there in period 1, but from then on they will always avoid it (as it would give -Inf utility).
 
@@ -194,11 +226,13 @@ d_grid=[riskyshare_grid; savings_grid; riskyinvest_grid]; % stacked column vecto
 
 
 % Exogenous states
+% Comment: C2005 used Tauchen-Hussey to discretize shocks, but nowadays we have Farmer-Toda which is better so I use that.
 
 % risky asset return: u~logN(mu,sigma_iota^2)
 [u_grid,pi_u]=discretizeAR1_FarmerToda(Params.mu,0,Params.sigma_iota,n_u);
 pi_u=pi_u(1,:)'; % i.i.d.
 u_grid=exp(u_grid);
+% Quick check: sum(pi_u.*u_grid) should roughly equal Params.mu_rtilde5year
 
 % Earnings: AR(1) eta
 % House prices: p
@@ -344,6 +378,7 @@ subplot(3,1,3); plot(asset_grid, assetDist.nohighschool)
 
 FnsToEvaluate.assets=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove) a;
 FnsToEvaluate.housing=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove,b,agej) ((1+b)^(agej-1)*exp(p))*hprime;
+FnsToEvaluate.housesize=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove,b,agej) hprime;
 FnsToEvaluate.earnings=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove,kappa_j) exp(kappa_j+eta+omega);
 FnsToEvaluate.everinvested=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove,kappa_j) spprime;
 FnsToEvaluate.totalriskysavings=@(riskyshare,savings,riskyinvest,hprime,spprime,h,sp,a,eta,p,omega,InvMove,kappa_j) riskyshare*savings*(savings>0);
@@ -356,16 +391,18 @@ acstime=toc
 
 
 figure(2);
-subplot(5,1,1); plot(Params.age,AgeConditionalStats.assets.Mean/1000)
-title('Assets (thousands of dollars)')
-subplot(5,1,2); plot(Params.age,AgeConditionalStats.housing.Mean/1000)
-title('Housing (value, in thousands of dollars)')
-subplot(5,1,3); plot(Params.age,AgeConditionalStats.earnings.Mean/1000,Params.age,AgeConditionalStats.earnings.college.Mean/1000,Params.age,AgeConditionalStats.earnings.highschool.Mean/1000,Params.age,AgeConditionalStats.earnings.nohighschool.Mean/1000)
+subplot(3,2,1); plot(Params.age,AgeConditionalStats.earnings.Mean/1000,Params.age,AgeConditionalStats.earnings.college.Mean/1000,Params.age,AgeConditionalStats.earnings.highschool.Mean/1000,Params.age,AgeConditionalStats.earnings.nohighschool.Mean/1000)
 title('Earnings (thousands of dollars)')
 legend('Average','College', 'High School','No High School')
-subplot(5,1,4); plot(Params.age,AgeConditionalStats.everinvested.Mean)
+subplot(3,2,2); plot(Params.age,AgeConditionalStats.assets.Mean/1000)
+title('Assets (thousands of dollars)')
+subplot(3,2,3); plot(Params.age,AgeConditionalStats.housing.Mean/1000)
+title('Housing (value, in thousands of dollars)')
+subplot(3,2,4); plot(Params.age,AgeConditionalStats.housesize.Mean/Params.Hmin)
+title('House Size')
+subplot(3,2,5); plot(Params.age,AgeConditionalStats.everinvested.Mean)
 title('Fraction of population that ever invested in shares')
-subplot(5,1,5); plot(Params.age,AgeConditionalStats.totalriskysavings.Mean./AgeConditionalStats.totalsavings.Mean)
+subplot(3,2,6); plot(Params.age,AgeConditionalStats.totalriskysavings.Mean./AgeConditionalStats.totalsavings.Mean)
 title('Fraction of total savings in risky assets')
 
 
